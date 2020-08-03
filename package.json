@@ -1,0 +1,12 @@
+{
+	"name": "Reversi-njs",
+	"version": "1.0.0",
+	"description": "Final Project for CSC337 (summer 2020). A web app for playing Reversi/Othello, with user account functionality",
+	"main": "reversi/server.js",
+	"author": "Kitty Elliott",
+	"dependencies": {
+		"express": "*",
+		"mongoose": "*",
+		"cookie-parser": "*"
+	}
+}
