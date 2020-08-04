@@ -14,7 +14,8 @@
             "program": "${workspaceFolder}/reversi/server.js",
             "env": {
                 "PORT": "3013"
-            }
+            },
+            "cwd": "${workspaceFolder}/reversi",
         }
     ]
 }
