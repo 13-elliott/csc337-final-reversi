@@ -369,11 +369,11 @@ async function main() {
 		// routes
 		.post("/register", registrationHandler)
 		.post("/login", loginHandler)
-		.get("/games/mine", getMyGamesHandler)
-		.get("/games/:gid", getGameHandler)
-		.post("/games/create", createGameHandler)
-		.get("/games/:gid/leave", leaveGameHandler)
-		// .post("/games/:gid/move", gameMoveHandler)
+		.post  ("/games/create", createGameHandler)
+		.get   ("/games/mine", getMyGamesHandler)
+		.get   ("/games/get/:gid", getGameHandler)
+//		.post  ("/games/:gid/move", gameMoveHandler)
+		.delete("/games/leave/:gid", leaveGameHandler)
 		.use("/", express.static("public_html"))
 	; // end of express app chain
 	mongoose.connection.on("error", console.error);
