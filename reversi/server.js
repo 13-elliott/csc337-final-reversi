@@ -185,18 +185,18 @@ async function getMyGamesHandler(req, res) {
 
 // request handler for POST request to create a new game
 async function createGameHandler(req, res) {
-	let { foe, cpu: hasCPU } = req.body;
-	let p1 = getValidatedSession(req.cookies)
+	let { foe, cpu } = req.body;
+	let p1 = getValidatedSession(req, res)
 		.then(s => s.user)
 		.catch(err => {
-			if (err.message == SESSION_404_MSG) {
-				return null;
-			} else {
+			if (err instanceof mongoose.Error) {
 				throw err;
+			} else {
+				return null;
 			}
 		});
 
-	if (hasCPU || foe == undefined) {
+	if (cpu || foe == undefined) {
 		p2 = null;
 	} else {
 		p2 = Account.findOne({ username: foe.trim().toLowerCase() })
@@ -215,7 +215,7 @@ async function createGameHandler(req, res) {
 		// await loading the players
 		[ p1, p2 ] = await Promise.all([ p1, p2 ]);
 		// create the game
-		let game = await new Game({ p1, p2, hasCPU })
+		let game = await new Game({ p1, p2, hasCPU: Boolean(cpu) })
 			.save();
 		// add game to the player documents
 		p1.games.push(game);
