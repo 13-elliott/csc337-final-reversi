@@ -20,7 +20,14 @@ const ACCOUNT_SCHEMA = new Schema({
 		lowercase: true,
 		trim: true,
 	},
-	//password: {TODO},
+	salt: {
+		required: true,
+		type: Buffer,
+	},
+	hash: {
+		required: true,
+		type: Buffer,
+	},
 	games: [{
 		type: ObjectId,
 		ref: "Game",
@@ -36,6 +43,7 @@ const SESSION_SCHEMA = new Schema({
 	lastVerified: {
 		required: true,
 		type: Date,
+		default: _ => Date.now(),
 	},
 });
 
