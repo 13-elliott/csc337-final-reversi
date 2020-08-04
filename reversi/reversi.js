@@ -12,7 +12,7 @@ const assert = require("assert");
 const BOARD_DIM = 8;
 const P1_TOKEN = "B";
 const P2_TOKEN = "W";
-const TOKEN_VALS = [P1_TOKEN, P2_TOKEN];
+const TOKEN_VALS = [P1_TOKEN, P2_TOKEN, null];
 
 // assertions re: constants
 assert(BOARD_DIM % 2 == 0);

@@ -25,10 +25,9 @@ const DB_HOST = "localhost";
 const DB_PORT = "27017";
 const DB_NAME = "reversi";
 const HS_ITERATIONS = 1000;
-const SESSION_TIMEOUT = 1200000;
-const GUEST_GAME_TIMEOUT = 600000;
-const CLEANUP_INTERVAL = 120000;
-const UNAUTH_LANDING = "/index.html?unauthorized"
+const SESSION_TIMEOUT = 1200000; // 20 min
+const GAME_TIMEOUT = 600000; // 10 min
+const CLEANUP_INTERVAL = 120000; // 2 min
 
 async function createAccount(username, password) {
 	let salt = crypto.randomBytes(64);
@@ -47,7 +46,7 @@ function oldestAllowedSessionTime() {
 // returns the farthest point in the past before
 // which a guest-only game would be considered expired
 function oldestAllowedGOGTime() {
-	return Date.now() - GUEST_GAME_TIMEOUT;
+	return Date.now() - GAME_TIMEOUT;
 }
 
 // fires off an async task to clean expired sessions from the database
@@ -55,15 +54,22 @@ function oldestAllowedGOGTime() {
 function cleanup() {
 	Session.deleteMany({ lastActive: { $lt: oldestAllowedSessionTime() } })
 		.exec()
-		.then(result => result.nDeleted > 0
-				? console.log(`deleted ${result.nDeleted} expired sessions`)
+		.then(result => result.deletedCount > 0
+				? console.log(`deleted ${result.deletedCount} expired sessions`)
 				: undefined
 		).catch(console.error);
 	
-	Game.deleteMany({ p1: null, lastPlayMadeAt: { $lt: oldestAllowedGOGTime() } })
+	Game.deleteMany({
+			p1: null,
+			lastPlayMadeAt: { $lt: oldestAllowedGOGTime() },
+			$or: [
+				{ abandoned: false },
+				{ abandoned: true, p2: null },
+			],
+		})
 		.exec()
-		.then(result => result.nDeleted > 0
-				? console.log(`deleted ${result.nDeleted} expired games`)
+		.then(result => result.deletedCount > 0
+				? console.log(`deleted ${result.deletedCount} expired/abdandoned games`)
 				: undefined
 		).catch(console.error);
 }
@@ -170,7 +176,7 @@ async function getMyGamesHandler(req, res) {
 		let { games } = await getValidatedSession(req, res)
 			.then(s => s.user.execPopulate({
 				path: "games",
-				select: "-board",
+				select: "-board -__v",
 			}));
 		res.json(games);
 	} catch (err) {
@@ -185,9 +191,17 @@ async function getMyGamesHandler(req, res) {
 
 function whichPlayerNumber(game, player) {
 	if (game.p1 == null) {
-		return 1;
+		if (game.abandoned) {
+			if (game.p2 != null && game.p2.equals(player)) {
+				return 2;
+			} else {
+				return null;
+			}
+		} else {
+			return 1;
+		}
 	} else if (player == null) {
-		if (game.hasCPU || game.p2 != null) {
+		if (game.hasCPU || game.abandoned || game.p2 != null) {
 			return null;
 		} else {
 			return 1;
@@ -201,8 +215,11 @@ function whichPlayerNumber(game, player) {
 	}
 }
 
-async function getGameHandler(req, res) {
-	let player = getValidatedSession(req, res)
+// returns a promise which resolves to the active, logged-in account
+// or null if there is no active, logged in account.
+// it is possible for the promise to reject by throwing a mongoose Error
+async function getActiveAccountNullable(req, res) {
+	return getValidatedSession(req, res)
 		.then(s => s.user)
 		.catch(err => {
 			if (err instanceof mongoose.Error) {
@@ -211,61 +228,73 @@ async function getGameHandler(req, res) {
 				return null;
 			}
 		});
-	let game = Game.findById(req.params.gid)
-		.select("-_id -__v")
-		.populate("p1", "-hash -salt -games -__v")
-		.populate("p2", "-hash -salt -games -__v")
+}
+
+async function getGameById(gid) {
+	const POP_SELECT = "-hash -salt -games -__v";
+	return Game.findById(gid)
+		.select("-__id -__v")
+		.populate("p1", POP_SELECT)
+		.populate("p2", POP_SELECT)
 		.exec();
+}
+
+async function wrapGameAuthentication(req, res, callback) {
+	let player = getActiveAccountNullable(req, res);
 	try {
-		[ player, game ] = await Promise.all([ player, game ]);
+		let game = await getGameById(req.params.gid);
 		if (game == null) {
 			res.status(404).send("Game not found");
+			player.catch(console.error);
 		} else {
+			player = await player;
 			let pNum = whichPlayerNumber(game, player);
 			if (pNum) {
-				res.status(200).json({
-					p1: game.p1 == null ? null : game.p1.username,
-					p2: game.p2 == null ? null : game.p2.username,
-					pNum,
-					cpu: game.hasCPU,
-					lastAction: game.lastPlayMadeAt,
-					state: game.state,
-					board: game.board.tokens,
-				});
+				await callback({ game, pNum });
 			} else {
 				res.sendStatus(403);
 			}
 		}
-
 	} catch (err) {
-		console.error(err);
-		res.sendStatus(500);
+		if (err instanceof mongoose.Error) {
+			console.error(err);
+			res.sendStatus(500);
+		} else {
+			res.status(400).send(err.message);
+		}
 	}
+}
+
+async function getGameHandler(req, res) {
+	return wrapGameAuthentication(req, res, ({ game, pNum }) =>
+		res.status(200).json({
+			p1: game.p1 == null ? null : game.p1.username,
+			p2: game.p2 == null ? null : game.p2.username,
+			pNum,
+			abandoned: game.abandoned,
+			cpu: game.hasCPU,
+			lastAction: game.lastPlayMadeAt,
+			state: game.state,
+			board: game.board.tokens,
+		})
+	);
 }
 
 // request handler for POST request to create a new game
 async function createGameHandler(req, res) {
-	let { foe, cpu } = req.body;
-	let p1 = getValidatedSession(req, res)
-		.then(s => s.user)
-		.catch(err => {
-			if (err instanceof mongoose.Error) {
-				throw err;
-			} else {
-				return null;
-			}
-		});
-
-	if (cpu || foe == undefined) {
+	let { p2: p2name, cpu } = req.body;
+	let p1 = getActiveAccountNullable(req, res);
+	let p2;
+	if (cpu || p2name == undefined) {
 		p2 = null;
 	} else {
-		p2 = Account.findOne({ username: foe.trim().toLowerCase() })
+		p2 = Account.findOne({ username: p2name.trim().toLowerCase() })
 			.exec()
 			.then(result => {
 				// Because p2 == null indicates a CPU or guest
 				// opponent, throw an error if p2 username not found
 				if (result == null) {
-					throw new Error(`opponent "${foe}" not found`);
+					throw new Error(`opponent "${p2name}" not found`);
 				} else {
 					return result;
 				}
@@ -286,7 +315,6 @@ async function createGameHandler(req, res) {
 		}
 		// (a)wait for player docs to save
 		await Promise.all([ p1, p2 ]);
-		// res.status(201).send(game._id);
 		res.status(201).redirect(
 			`/play.html?gid=${encodeURIComponent(game._id)}`
 		);
@@ -298,6 +326,38 @@ async function createGameHandler(req, res) {
 			res.status(400).send(err.message);
 		}
 	}
+}
+
+async function leaveGameHandler(req, res) {
+	// remove the given game from the given player's .games
+	// property and then save the player if the player is not null
+	async function removeFromGames(player, gameToRemove) {
+		if (player == null) {
+			return null;
+		} else {
+			let i = player.games.indexOf(gameToRemove._id);
+			if (i != -1) {
+				player.games.splice(i, 1);
+				return player.save();
+			} else {
+				return player;
+			}
+		}
+	}
+
+	return wrapGameAuthentication(req, res, async ({ game, pNum }) => {
+		let {p1, p2} = await game.populate("p1")
+			.populate("p2")
+			.execPopulate();
+		game.set(`p${pNum}`, null);
+		game.set("abandoned", true)
+		await game.save();
+		await Promise.all([
+			removeFromGames(p1, game),
+			removeFromGames(p2, game)
+		]);
+		res.sendStatus(200);
+	});
 }
 
 async function main() {
@@ -312,7 +372,7 @@ async function main() {
 		.get("/games/mine", getMyGamesHandler)
 		.get("/games/:gid", getGameHandler)
 		.post("/games/create", createGameHandler)
-		// .post("/games/:gid/leave", leaveGameHandler)
+		.get("/games/:gid/leave", leaveGameHandler)
 		// .post("/games/:gid/move", gameMoveHandler)
 		.use("/", express.static("public_html"))
 	; // end of express app chain

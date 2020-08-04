@@ -74,11 +74,17 @@ const GAME_SCHEMA = new Schema({
 	hasCPU: {
 		required: false,
 		type: Boolean,
+		default: false,
 	},
 	state: {
 		type: String,
 		enum: ["P1_TURN", "P2_TURN", "GAME_OVER"],
 		default: "P1_TURN",
+	},
+	abandoned: {
+		required: false,
+		type: Boolean,
+		default: false,
 	},
 	lastPlayMadeAt: {
 		required: true,
