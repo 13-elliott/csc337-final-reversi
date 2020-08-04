@@ -74,7 +74,7 @@ async function createSession(account, response) {
 // its lastActive property is updated, and thus this function might
 // also throw an error if that update could not be saved to the database.
 // the session's "user" field will be populated.
-async function validateSession(cookies) {
+async function getValidatedSession(cookies) {
 	let { session: cookie } = cookies;
 	if (cookie == undefined
 		|| cookie.sid == undefined
@@ -146,19 +146,22 @@ async function loginHandler(req, res) {
 	}
 }
 
-async function authenticationHandler(req, res, next) {
+async function getMyGamesHandler(req, res) {
 	try {
-		await validateSession(req.cookies);
+		let { games } = await getValidatedSession(req.cookies)
+			.then(s => s.user.execPopulate({
+				path: "games",
+				select: "-board",
+			}));
+		res.json(games);
 	} catch (err) {
-		console.error(err);
 		if (err instanceof mongoose.Error) {
-			res.sendStatus(500);
+			res.sendStatus(500)
 		} else {
-			res.status(403).redirect(UNAUTH_LANDING);
+			res.status(403).send(err.message);
 		}
 		return;
 	}
-	next();
 }
 
 async function main() {
@@ -170,7 +173,11 @@ async function main() {
 		// routes
 		.post("/register", registrationHandler)
 		.post("/login", loginHandler)
-		.get("/", authenticationHandler)
+		.get("/games/mine", getMyGamesHandler)
+		// .get("/games/:gameId", getGameHandler)
+		// .post("/games/create", createGameHandler)
+		// .post("/games/:gameId/leave", leaveGameHandler)
+		// .post("/games/:gameId/move", gameMoveHandler)
 		.use("/", express.static("public_html"))
 	; // end of express app chain
 	mongoose.connection.on("error", console.error);
