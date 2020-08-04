@@ -134,11 +134,12 @@ async function loginHandler(req, res) {
 		res.status(400).send("Missing username or password");
 	} else try {
 		let account = await Account.findOne({ username }).exec();
-		if (account == null) {
-			res.status(404).send(`No such user "${username}"`);
-		} else if (await isValidLogin(account, password)) {
+		if (account != null 
+			&& await isValidLogin(account, password)) {
 			await createSession(account, res);
 			res.sendStatus(200);
+		} else {
+			res.status(403).send("Incorrect username or password")
 		}
 	} catch (err) {
 		console.error(err);
