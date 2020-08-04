@@ -61,7 +61,7 @@ BOARD_SCHEMA.loadClass(reversi.Board);
 
 const GAME_SCHEMA = new Schema({
 	p1: {
-		required: true,
+		required: false,
 		type: ObjectId,
 		ref: "Account",
 	},
@@ -70,6 +70,10 @@ const GAME_SCHEMA = new Schema({
 		type: ObjectId,
 		ref: "Account",
 		default: null,
+	},
+	hasCPU: {
+		required: false,
+		type: Boolean,
 	},
 	state: {
 		type: String,

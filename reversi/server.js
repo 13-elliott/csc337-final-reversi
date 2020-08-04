@@ -26,6 +26,7 @@ const DB_PORT = "27017";
 const DB_NAME = "reversi";
 const HS_ITERATIONS = 1000;
 const SESSION_TIMEOUT = 1200000;
+const GUEST_GAME_TIMEOUT = 600000;
 const CLEANUP_INTERVAL = 120000;
 const UNAUTH_LANDING = "/index.html?unauthorized"
 const SESSION_EXPIRY_MSG = "Session expired.";
@@ -45,12 +46,26 @@ function oldestAllowedSessionTime() {
 	return Date.now() - SESSION_TIMEOUT;
 }
 
-// fires off an async task to clean expired sessions from the database.
+// returns the farthest point in the past before
+// which a guest-only game would be considered expired
+function oldestAllowedGOGTime() {
+	return Date.now() - GUEST_GAME_TIMEOUT;
+}
+
+// fires off an async task to clean expired sessions from the database
+// and an async task to clean expired guest-only games from the database
 function cleanup() {
 	Session.deleteMany({ lastActive: { $lt: oldestAllowedSessionTime() } })
 		.exec()
 		.then(result => result.nDeleted > 0
 				? console.log(`deleted ${result.nDeleted} expired sessions`)
+				: undefined
+		).catch(console.error);
+	
+	Game.deleteMany({ p1: null, lastPlayMadeAt: { $lt: oldestAllowedGOGTime() } })
+		.exec()
+		.then(result => result.nDeleted > 0
+				? console.log(`deleted ${result.nDeleted} expired games`)
 				: undefined
 		).catch(console.error);
 }
@@ -170,22 +185,27 @@ async function getMyGamesHandler(req, res) {
 
 // request handler for POST request to create a new game
 async function createGameHandler(req, res) {
+	let { foe, cpu: hasCPU } = req.body;
 	let p1 = getValidatedSession(req.cookies)
-		.then(s => s.user);
-	let p2;
-	if (req.body.foe == undefined) {
-		// foe not specified, so specifying
-		// a CPU opponent through null value
-		p2 = Promise.resolve(null);
+		.then(s => s.user)
+		.catch(err => {
+			if (err.message == SESSION_404_MSG) {
+				return null;
+			} else {
+				throw err;
+			}
+		});
+
+	if (hasCPU || foe == undefined) {
+		p2 = null;
 	} else {
 		p2 = Account.findOne({ username: foe.trim().toLowerCase() })
-			.select("username _id")
 			.exec()
 			.then(result => {
-				// Because a "null" p2 value indicates a CPU opponent,
-				// throw an error if the p2 username could not be found.
+				// Because p2 == null indicates a CPU or guest
+				// opponent, throw an error if p2 username not found
 				if (result == null) {
-					throw new Error(`opponent "${req.body.foe}" not found`);
+					throw new Error(`opponent "${foe}" not found`);
 				} else {
 					return result;
 				}
@@ -195,7 +215,8 @@ async function createGameHandler(req, res) {
 		// await loading the players
 		[ p1, p2 ] = await Promise.all([ p1, p2 ]);
 		// create the game
-		let game = await new Game({ p1, p2 }).save();
+		let game = await new Game({ p1, p2, hasCPU })
+			.save();
 		// add game to the player documents
 		p1.games.push(game);
 		p1 = p1.save();
@@ -205,8 +226,10 @@ async function createGameHandler(req, res) {
 		}
 		// (a)wait for player docs to save
 		await Promise.all([ p1, p2 ]);
-		res.status(201).send(game._id);
-		// res.status(201).redirect(`/play.html?gid=${game._id}`)
+		// res.status(201).send(game._id);
+		res.status(201).redirect(
+			`/play.html?gid=${encodeURIComponent(game._id)}`
+		);
 	} catch (err) {
 		if (err instanceof mongoose.Error) {
 			console.error(err);
@@ -239,6 +262,7 @@ async function main() {
 			`mongodb://${DB_HOST}:${DB_PORT}/${DB_NAME}`,
 			{ useNewUrlParser: true, useUnifiedTopology: true }
 		);
+		cleanup();
 		setInterval(cleanup, CLEANUP_INTERVAL);
 		app.listen(PORT);
 	} catch (err) {
