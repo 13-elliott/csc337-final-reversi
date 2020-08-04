@@ -114,7 +114,7 @@ async function registrationHandler(req, res) {
 	} else try {
 		await createAccount(username, password)
 			.then(acct => createSession(acct, res));
-		res.sendStatus(200);
+		res.sendStatus(201);
 	} catch (err) {
 		if (err.code == 11000) { // violation of "unique" constraint
 			res.status(409)
@@ -165,6 +165,55 @@ async function getMyGamesHandler(req, res) {
 	}
 }
 
+// request handler for POST request to create a new game
+async function createGameHandler(req, res) {
+	let p1 = getValidatedSession(req.cookies)
+		.then(s => s.user);
+	let p2;
+	if (req.body.foe == undefined) {
+		// foe not specified, so specifying
+		// a CPU opponent through null value
+		p2 = Promise.resolve(null);
+	} else {
+		p2 = Account.findOne({ username: foe.trim().toLowerCase() })
+			.select("username _id")
+			.exec()
+			.then(result => {
+				// Because a "null" p2 value indicates a CPU opponent,
+				// throw an error if the p2 username could not be found.
+				if (result == null) {
+					throw new Error(`opponent "${req.body.foe}" not found`);
+				} else {
+					return result;
+				}
+			});
+	}
+	try {
+		// await loading the players
+		[ p1, p2 ] = await Promise.all([ p1, p2 ]);
+		// create the game
+		let game = await new Game({ p1, p2 }).save();
+		// add game to the player documents
+		p1.games.push(game);
+		p1 = p1.save();
+		if (p2 != null) {
+			p2.games.push(game);
+			p2 = p2.save();
+		}
+		// (a)wait for player docs to save
+		await Promise.all([ p1, p2 ]);
+		res.status(201).send(game._id);
+		// res.status(201).redirect(`/play.html?gid=${game._id}`)
+	} catch (err) {
+		if (err instanceof mongoose.Error) {
+			console.error(err);
+			res.sendStatus(500);
+		} else {
+			res.status(400).send(err.message);
+		}
+	}
+}
+
 async function main() {
 	const app = express()
 		// middleware
@@ -176,7 +225,7 @@ async function main() {
 		.post("/login", loginHandler)
 		.get("/games/mine", getMyGamesHandler)
 		// .get("/games/:gameId", getGameHandler)
-		// .post("/games/create", createGameHandler)
+		.post("/games/create", createGameHandler)
 		// .post("/games/:gameId/leave", leaveGameHandler)
 		// .post("/games/:gameId/move", gameMoveHandler)
 		.use("/", express.static("public_html"))

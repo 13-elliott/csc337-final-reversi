@@ -79,6 +79,7 @@ const GAME_SCHEMA = new Schema({
 	lastPlayMadeAt: {
 		required: true,
 		type: Date,
+		default: _ => Date.now(),
 	},
 	board: {
 		required: true,
