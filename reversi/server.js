@@ -28,6 +28,8 @@ const HS_ITERATIONS = 1000;
 const SESSION_TIMEOUT = 1200000;
 const CLEANUP_INTERVAL = 120000;
 const UNAUTH_LANDING = "/index.html?unauthorized"
+const SESSION_EXPIRY_MSG = "Session expired.";
+const SESSION_404_MSG = "Session not found.";
 
 async function createAccount(username, password) {
 	let salt = crypto.randomBytes(64);
@@ -84,13 +86,14 @@ async function getValidatedSession(cookies) {
 	let session = await Session.findOne({
 		_id: cookie.sid,
 		user: cookie.uid,
-		lastActive: { $gte: oldestAllowedSessionTime() },
 	})
 		.populate("user")
 		.exec();
 
 	if (session == null) {
-		throw new Error("Session not found or expired");
+		throw new Error(SESSION_404_MSG);
+	} else if (session.lastActive.getTime() < oldestAllowedGOGTime()) {
+		throw new Error(SESSION_EXPIRY_MSG);
 	} else {
 		session.lastActive = Date.now();
 		return session.save();
