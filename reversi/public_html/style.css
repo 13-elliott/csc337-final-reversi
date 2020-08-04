@@ -1,0 +1,41 @@
+/*
+ * Kitty Elliott
+ * CSC 337
+ * PA10: "Ostaa pt2"
+ * 	style.css
+ */
+
+body {
+	background-color: goldenrod;
+	text-align: center;
+}
+
+h3 {
+	color: brown;
+}
+
+p {
+	width: max-content;
+	background-color: olivedrab;
+	padding: 5px 20px;
+	margin: auto;
+	border: 2px solid white;
+	color: white;
+	font-weight: bold;
+	font-style: italic;
+}
+
+form {
+	display: block;
+	width: max-content;
+	margin: auto;
+	text-align: justify;
+}
+
+form > label {
+	display: inline-block;
+	font-weight: bold;
+	width: 100px;
+	color: white;
+}
+
