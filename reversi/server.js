@@ -27,6 +27,7 @@ const DB_NAME = "reversi";
 const HS_ITERATIONS = 1000;
 const SESSION_TIMEOUT = 1200000;
 const CLEANUP_INTERVAL = 120000;
+const UNAUTH_LANDING = "/index.html?unauthorized"
 
 async function createAccount(username, password) {
 	let salt = crypto.randomBytes(64);
@@ -145,6 +146,21 @@ async function loginHandler(req, res) {
 	}
 }
 
+async function authenticationHandler(req, res, next) {
+	try {
+		await validateSession(req.cookies);
+	} catch (err) {
+		console.error(err);
+		if (err instanceof mongoose.Error) {
+			res.sendStatus(500);
+		} else {
+			res.status(403).redirect(UNAUTH_LANDING);
+		}
+		return;
+	}
+	next();
+}
+
 async function main() {
 	const app = express()
 		// middleware
@@ -154,7 +170,8 @@ async function main() {
 		// routes
 		.post("/register", registrationHandler)
 		.post("/login", loginHandler)
-//		.use("/", express.static("public_html"))
+		.get("/", authenticationHandler)
+		.use("/", express.static("public_html"))
 	; // end of express app chain
 	mongoose.connection.on("error", console.error);
 	try {
