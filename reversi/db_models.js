@@ -40,7 +40,7 @@ const SESSION_SCHEMA = new Schema({
 		type: ObjectId,
 		ref: "Account",
 	},
-	lastVerified: {
+	lastActive: {
 		required: true,
 		type: Date,
 		default: _ => Date.now(),
