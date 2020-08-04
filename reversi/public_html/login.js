@@ -24,10 +24,9 @@ function unauthorizedKeyPresent() {
 }
 
 function main() {
-	$("#loginForm").submit(formSubmitHandler);
-	$("#regForm").submit(formSubmitHandler);
+	$("form").submit(formSubmitHandler);
 	$("#notifArea").click(function() { $(this).empty() })
-
+	
 	if (unauthorizedKeyPresent()) {
 		$("<p/>")
 			.text("Unauthorized! Your session may have expired")

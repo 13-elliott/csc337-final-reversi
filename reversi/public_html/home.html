@@ -13,9 +13,14 @@
 		type="text/css"
 		href="style.css"
 	/>
-    <title>Reversi login</title>
+    <title>Reversi Home</title>
 </head>
 <body>
-    you did it!
+    <form id="createGame" action="/games/create" method="POST">
+        0<input type="radio" name="cpu" value=""  />
+        1<input type="radio" name="cpu" value="1" />
+        <input type="text" name="p2" />
+        <input type="submit" value="Create Game" />
+    </form>
 </body>
 </html>

@@ -29,8 +29,6 @@ const SESSION_TIMEOUT = 1200000;
 const GUEST_GAME_TIMEOUT = 600000;
 const CLEANUP_INTERVAL = 120000;
 const UNAUTH_LANDING = "/index.html?unauthorized"
-const SESSION_EXPIRY_MSG = "Session expired.";
-const SESSION_404_MSG = "Session not found.";
 
 async function createAccount(username, password) {
 	let salt = crypto.randomBytes(64);
@@ -91,8 +89,8 @@ async function createSession(account, response) {
 // its lastActive property is updated, and thus this function might
 // also throw an error if that update could not be saved to the database.
 // the session's "user" field will be populated.
-async function getValidatedSession(cookies) {
-	let { session: cookie } = cookies;
+async function getValidatedSession(req, res) {
+	let { session: cookie } = req.cookies;
 	if (cookie == undefined
 		|| cookie.sid == undefined
 		|| cookie.uid == undefined) {
@@ -101,15 +99,17 @@ async function getValidatedSession(cookies) {
 	let session = await Session.findOne({
 		_id: cookie.sid,
 		user: cookie.uid,
+		lastActive: { $gte: oldestAllowedSessionTime() }
 	})
 		.populate("user")
 		.exec();
 
 	if (session == null) {
-		throw new Error(SESSION_404_MSG);
-	} else if (session.lastActive.getTime() < oldestAllowedGOGTime()) {
-		throw new Error(SESSION_EXPIRY_MSG);
+		throw new Error("Session not found or expired");
 	} else {
+		res.cookie("session", cookie, 
+			{ maxAge: SESSION_TIMEOUT }
+		);
 		session.lastActive = Date.now();
 		return session.save();
 	}
@@ -167,7 +167,7 @@ async function loginHandler(req, res) {
 
 async function getMyGamesHandler(req, res) {
 	try {
-		let { games } = await getValidatedSession(req.cookies)
+		let { games } = await getValidatedSession(req, res)
 			.then(s => s.user.execPopulate({
 				path: "games",
 				select: "-board",
@@ -180,6 +180,66 @@ async function getMyGamesHandler(req, res) {
 			res.status(403).send(err.message);
 		}
 		return;
+	}
+}
+
+function whichPlayerNumber(game, player) {
+	if (game.p1 == null) {
+		return 1;
+	} else if (player == null) {
+		if (game.hasCPU || game.p2 != null) {
+			return null;
+		} else {
+			return 1;
+		}
+	} else if (player.equals(game.p1)) {
+		return 1;
+	} else if (player.equals(game.p2)) {
+		return 2;
+	} else {
+		return null;
+	}
+}
+
+async function getGameHandler(req, res) {
+	let player = getValidatedSession(req, res)
+		.then(s => s.user)
+		.catch(err => {
+			if (err instanceof mongoose.Error) {
+				throw err;
+			} else {
+				return null;
+			}
+		});
+	let game = Game.findById(req.params.gid)
+		.select("-_id -__v")
+		.populate("p1", "-hash -salt -games -__v")
+		.populate("p2", "-hash -salt -games -__v")
+		.exec();
+	try {
+		[ player, game ] = await Promise.all([ player, game ]);
+		if (game == null) {
+			res.status(404).send("Game not found");
+		} else {
+			let pNum = whichPlayerNumber(game, player);
+			if (pNum) {
+				res.status(200).json({
+					p1: game.p1 == null ? null : game.p1.username,
+					p2: game.p2 == null ? null : game.p2.username,
+					pNum,
+					cpu: game.hasCPU,
+					lastAction: game.lastPlayMadeAt,
+					state: game.state,
+					board: game.board.tokens,
+				});
+			} else {
+				res.sendStatus(403);
+			}
+		}
+
+	} catch (err) {
+		console.error(err);
+		res.sendStatus(500);
 	}
 }
 
@@ -250,10 +310,10 @@ async function main() {
 		.post("/register", registrationHandler)
 		.post("/login", loginHandler)
 		.get("/games/mine", getMyGamesHandler)
-		// .get("/games/:gameId", getGameHandler)
+		.get("/games/:gid", getGameHandler)
 		.post("/games/create", createGameHandler)
-		// .post("/games/:gameId/leave", leaveGameHandler)
-		// .post("/games/:gameId/move", gameMoveHandler)
+		// .post("/games/:gid/leave", leaveGameHandler)
+		// .post("/games/:gid/move", gameMoveHandler)
 		.use("/", express.static("public_html"))
 	; // end of express app chain
 	mongoose.connection.on("error", console.error);
