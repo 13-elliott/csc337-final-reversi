@@ -13,6 +13,7 @@ const cookieParser = require("cookie-parser");
 const crypto = require("crypto");
 const { promisify } = require("util");
 const { Account, Session, Game } = require("./db_models.js");
+const { P1_TOKEN, P2_TOKEN } = require("./reversi.js");
 
 // convert callback fn to promise-y async fn 
 const pbkdf2 = promisify(crypto.pbkdf2);
@@ -360,6 +361,45 @@ async function leaveGameHandler(req, res) {
 	});
 }
 
+async function gameMoveHandler(req, res) {
+	return wrapGameAuthentication(req, res, async ({ game, pNum }) => {
+		let { x, y } = req.body;
+		try {
+			if (game.abandoned) {
+				res.status(409).send("Game was abandoned by the other player");
+				return;
+			} else if (game.state == "GAME_OVER") {
+				res.status(409).send("Game is over!");
+				return;
+			} else if (pNum == 1 && game.state == "P1_TURN") {
+				game.board.takePlayerTurn(x, y, P1_TOKEN);
+				if (game.hasCPU) {
+					game.board.takeCompTurns();
+				} else if (game.board.canMakeMove(P2_TOKEN)) {
+					game.state = "P2_TURN";
+				} else if (!game.board.canMakeMove(P1_TOKEN)) {
+					game.state = "GAME_OVER";
+				}
+			} else if (pNum == 2 && game.state == "P2_TURN") {
+				game.board.takePlayerTurn(x, y, P2_TOKEN);
+				if (game.board.canMakeMove(P1_TOKEN)) {
+					game.state = "P1_TURN";
+				} else if (!game.board.canMakeMove(P2_TOKEN)) {
+					game.state = "GAME_OVER";
+				}
+			} else {
+				res.status(409).send("Not your turn!");
+				return;
+			}
+		} catch (err) {
+			res.status(409).send(err.message);
+			return;
+		}
+		await game.save();
+		res.sendStatus(200);
+	});
+}
+
 async function main() {
 	const app = express()
 		// middleware
@@ -372,7 +412,7 @@ async function main() {
 		.post  ("/games/create", createGameHandler)
 		.get   ("/games/mine", getMyGamesHandler)
 		.get   ("/games/get/:gid", getGameHandler)
-//		.post  ("/games/:gid/move", gameMoveHandler)
+		.post  ("/games/:gid/move", gameMoveHandler)
 		.delete("/games/leave/:gid", leaveGameHandler)
 		.use("/", express.static("public_html"))
 	; // end of express app chain
