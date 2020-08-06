@@ -49,10 +49,10 @@ class Board {
 				return "GAME_OVER";
 			} else {
 				let {x, y} = move.pop();
-				applyMove.call(this, x, y, move);
+				applyMove.call(this, x, y, P2_TOKEN, move);
 			}
 		} // keep taking CPU turns while P1 cannot move
-		while (!this.canMakeMove(P1_TOKEN));
+		while (!this.getPossibleMoves(P1_TOKEN));
 	}
 
 	takePlayerTurn(x, y, playerToken) {
@@ -65,12 +65,15 @@ class Board {
 		}
 	}
 
-	canMakeMove(playerToken) {
-		for (let x = 0; x < BOARD_DIM; x++)
-			for (let y = 0; y < BOARD_DIM; y++)
+	getPossibleMoves(playerToken) {
+		let possibleMoves = [];
+		for (let x = 0; x < BOARD_DIM; x++) {
+			for (let y = 0; y < BOARD_DIM; y++) {
 				if (getSpacesToFlip.call(this, x, y, playerToken).length > 0)
-					return true;
-		return false;
+					possibleMoves.push({ x, y })
+			}
+		}
+		return possibleMoves.length == 0 ? null : possibleMoves;
 	}
 
 	get p1Score() {
@@ -82,7 +85,7 @@ class Board {
 	}
 
 	get gameIsOver() {
-		let r = !this.canMakeMove(P1_TOKEN) && !this.canMakeMove(P2_TOKEN);
+		let r = !this.getPossibleMoves(P1_TOKEN) && !this.getPossibleMoves(P2_TOKEN);
 		return r;
 	}
 }
@@ -104,7 +107,7 @@ function validateCoords(x, y) {
 function validateTokenVal(token) {
 	if (token == undefined || !TOKEN_VALS.includes(token)) {
 		throw new Error(
-			`Token must be one of [${TOKEN_VALS.filter(v=> v != undefined)}]: ${String(token)}`
+			`Token must be one of [${TOKEN_VALS.map(String)}]: ${String(token)}`
 		);
 	}
 }
@@ -174,14 +177,8 @@ function getSandwiched(startX, startY, breadToken, xIncr, yIncr) {
 	}
 	let x = startX + xIncr;
 	let y = startY + yIncr;
-	try {
-		validateCoords(x,y);
-	} catch (err) {
-		if (err.name == "RangeError") {
-			return [];
-		} else {
-			throw err;
-		}
+	if (x < 0 || BOARD_DIM <= x || y < 0 || BOARD_DIM <= y) {
+		return [];
 	}
 
 	let sandwiched = [];
@@ -196,7 +193,7 @@ function getSandwiched(startX, startY, breadToken, xIncr, yIncr) {
 		}
 		x += xIncr;
 		y += yIncr;
-	} while (x <= x && x < BOARD_DIM && 0 <= y && y < BOARD_DIM);
+	} while (0 <= x && x < BOARD_DIM && 0 <= y && y < BOARD_DIM);
 	// either fell out of bounds or reached an empty space
 	// without finding another bread token
 	return [];

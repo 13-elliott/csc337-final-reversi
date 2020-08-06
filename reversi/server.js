@@ -258,8 +258,12 @@ async function wrapGameAuthentication(req, res, callback) {
 		}
 	} catch (err) {
 		if (err instanceof mongoose.Error) {
-			console.error(err);
-			res.sendStatus(500);
+			if (err.name == "CastError") {
+				res.sendStatus(400);
+			} else {
+				console.error(err);
+				res.sendStatus(500);
+			}
 		} else {
 			res.status(400).send(err.message);
 		}
@@ -267,18 +271,26 @@ async function wrapGameAuthentication(req, res, callback) {
 }
 
 async function getGameHandler(req, res) {
-	return wrapGameAuthentication(req, res, ({ game, pNum }) =>
+	return wrapGameAuthentication(req, res, ({ game, pNum }) => {
+		let pToken = pNum == 1 ? P1_TOKEN : P2_TOKEN;
 		res.status(200).json({
-			p1: game.p1 == null ? null : game.p1.username,
-			p2: game.p2 == null ? null : game.p2.username,
+			p1: {
+				score: game.board.p1Score,
+				name: game.p1 == null ? null : game.p1.username,
+			},
+			p2: {
+				score: game.board.p2Score,
+				name: game.p2 == null ? null : game.p2.username,
+			},
 			pNum,
 			abandoned: game.abandoned,
-			cpu: game.hasCPU,
+			hasCPU: game.hasCPU,
 			lastAction: game.lastPlayMadeAt,
-			state: game.state,
+			curTurn: game.curTurn,
+			possibleMoves: game.board.getPossibleMoves(pToken),
 			board: game.board.tokens,
 		})
-	);
+	});
 }
 
 // request handler for POST request to create a new game
@@ -308,8 +320,10 @@ async function createGameHandler(req, res) {
 		let game = await new Game({ p1, p2, hasCPU: Boolean(cpu) })
 			.save();
 		// add game to the player documents
-		p1.games.push(game);
-		p1 = p1.save();
+		if (p1 != null) {
+			p1.games.push(game);
+			p1 = p1.save();
+		}
 		if (p2 != null) {
 			p2.games.push(game);
 			p2 = p2.save();
@@ -363,29 +377,37 @@ async function leaveGameHandler(req, res) {
 
 async function gameMoveHandler(req, res) {
 	return wrapGameAuthentication(req, res, async ({ game, pNum }) => {
-		let { x, y } = req.body;
+		let x = Number(req.body.x),
+			y = Number(req.body.y)
+		if (x == NaN || y == NaN) {
+			res.status(400).send("x and y must be numbers")
+			return
+		}
 		try {
 			if (game.abandoned) {
 				res.status(409).send("Game was abandoned by the other player");
 				return;
-			} else if (game.state == "GAME_OVER") {
+			} else if (game.curTurn == 0) {
 				res.status(409).send("Game is over!");
 				return;
-			} else if (pNum == 1 && game.state == "P1_TURN") {
-				game.board.takePlayerTurn(x, y, P1_TOKEN);
-				if (game.hasCPU) {
-					game.board.takeCompTurns();
-				} else if (game.board.canMakeMove(P2_TOKEN)) {
-					game.state = "P2_TURN";
-				} else if (!game.board.canMakeMove(P1_TOKEN)) {
-					game.state = "GAME_OVER";
-				}
-			} else if (pNum == 2 && game.state == "P2_TURN") {
-				game.board.takePlayerTurn(x, y, P2_TOKEN);
-				if (game.board.canMakeMove(P1_TOKEN)) {
-					game.state = "P1_TURN";
-				} else if (!game.board.canMakeMove(P2_TOKEN)) {
-					game.state = "GAME_OVER";
+			} else if (pNum == game.curTurn) {
+				if (pNum == 1) {
+					game.board.takePlayerTurn(x, y, P1_TOKEN);
+					if (game.hasCPU) {
+						game.board.takeCompTurns();
+					}
+					if (!game.hasCPU && game.board.getPossibleMoves(P2_TOKEN)) {
+						game.curTurn = 2;
+					} else if (!game.board.getPossibleMoves(P1_TOKEN)) {
+						game.curTurn = 0;
+					}
+				} else { // pNum == 2
+					game.board.takePlayerTurn(x, y, P2_TOKEN);
+					if (game.board.getPossibleMoves(P1_TOKEN)) {
+						game.curTurn = 1;
+					} else if (!game.board.getPossibleMoves(P2_TOKEN)) {
+						game.curTurn = 0;
+					}
 				}
 			} else {
 				res.status(409).send("Not your turn!");
@@ -395,6 +417,7 @@ async function gameMoveHandler(req, res) {
 			res.status(409).send(err.message);
 			return;
 		}
+		game.lastPlayMadeAt = Date.now();
 		await game.save();
 		res.sendStatus(200);
 	});
@@ -411,9 +434,9 @@ async function main() {
 		.post("/login", loginHandler)
 		.post  ("/games/create", createGameHandler)
 		.get   ("/games/mine", getMyGamesHandler)
-		.get   ("/games/get/:gid", getGameHandler)
-		.post  ("/games/:gid/move", gameMoveHandler)
-		.delete("/games/leave/:gid", leaveGameHandler)
+		.get   ("/games/id/:gid", getGameHandler)
+		.post  ("/games/id/:gid", gameMoveHandler)
+		.delete("/games/id/:gid", leaveGameHandler)
 		.use("/", express.static("public_html"))
 	; // end of express app chain
 	mongoose.connection.on("error", console.error);

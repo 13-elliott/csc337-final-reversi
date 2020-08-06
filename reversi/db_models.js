@@ -76,10 +76,10 @@ const GAME_SCHEMA = new Schema({
 		type: Boolean,
 		default: false,
 	},
-	state: {
-		type: String,
-		enum: ["P1_TURN", "P2_TURN", "GAME_OVER"],
-		default: "P1_TURN",
+	curTurn: { // whose turn it is
+		type: Number,
+		enum: [0, 1, 2],
+		default: 1,
 	},
 	abandoned: {
 		required: false,
