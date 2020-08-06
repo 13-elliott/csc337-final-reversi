@@ -432,6 +432,10 @@ async function main() {
 		// routes
 		.post("/register", registrationHandler)
 		.post("/login", loginHandler)
+		.get("/testauth", (req, res) => getValidatedSession(req, res)
+			.then(_ => res.sendStatus(200))
+			.catch(_ => res.sendStatus(403))
+		)
 		.post  ("/games/create", createGameHandler)
 		.get   ("/games/mine", getMyGamesHandler)
 		.get   ("/games/id/:gid", getGameHandler)
