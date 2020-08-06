@@ -175,11 +175,27 @@ async function loginHandler(req, res) {
 async function getMyGamesHandler(req, res) {
 	try {
 		let { games } = await getValidatedSession(req, res)
-			.then(s => s.user.execPopulate({
-				path: "games",
-				select: "-board -__v",
-			}));
-		res.json(games);
+			.then(s => s.user.execPopulate("games"))
+			.then(u => u
+				.populate({ path: "games.p1", select: USER_POP_SELECT })
+				.populate({ path: "games.p2", select: USER_POP_SELECT })
+				.execPopulate()
+			);
+		res.json(games.map(g => { return {
+			id: g._id,
+			p1: {
+				score: g.board.p1Score,
+				name: g.p1 == null ? null : g.p1.username,
+			},
+			p2: {
+				score: g.board.p2Score,
+				name: g.p2 == null ? null : g.p2.username,
+			},
+			abandoned: g.abandoned,
+			hasCPU: g.hasCPU,
+			lastAction: g.lastPlayMadeAt,
+			curTurn: g.curTurn,
+		}}));
 	} catch (err) {
 		if (err instanceof mongoose.Error) {
 			res.sendStatus(500)
@@ -231,12 +247,13 @@ async function getActiveAccountNullable(req, res) {
 		});
 }
 
+const USER_POP_SELECT = "-hash -salt -games -__v";
+
 async function getGameById(gid) {
-	const POP_SELECT = "-hash -salt -games -__v";
 	return Game.findById(gid)
 		.select("-__id -__v")
-		.populate("p1", POP_SELECT)
-		.populate("p2", POP_SELECT)
+		.populate("p1", USER_POP_SELECT)
+		.populate("p2", USER_POP_SELECT)
 		.exec();
 }
 
@@ -432,12 +449,12 @@ async function main() {
 		// routes
 		.post("/register", registrationHandler)
 		.post("/login", loginHandler)
-		.get("/testauth", (req, res) => getValidatedSession(req, res)
-			.then(_ => res.sendStatus(200))
+		.get("/get/username", (req, res) => getValidatedSession(req, res)
+			.then(s => res.send(s.user.username))
 			.catch(_ => res.sendStatus(403))
 		)
+		.get   ("/get/games", getMyGamesHandler)
 		.post  ("/games/create", createGameHandler)
-		.get   ("/games/mine", getMyGamesHandler)
 		.get   ("/games/id/:gid", getGameHandler)
 		.post  ("/games/id/:gid", gameMoveHandler)
 		.delete("/games/id/:gid", leaveGameHandler)

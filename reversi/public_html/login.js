@@ -32,6 +32,8 @@ function main() {
 			.text("Unauthorized! Your session may have expired")
 			.appendTo("#notifArea");
 	}
+	$.get("/get/username")
+		.done(_ => window.location.href = "/home.html")
 }
 
 $(main);

@@ -38,39 +38,3 @@ form > label {
 	width: 100px;
 	color: white;
 }
-
-#gameInfo {
-	width: 100%;
-	border: 3px solid brown;
-	margin-bottom: 5px;
-}
-
-#board {
-	background-color: blue;
-	width: 400px;
-	height: 400px;
-	margin-left: auto;
-	margin-right: auto;
-	font-size: 2em;
-	border: 3px solid black;
-}
-
-#board td {
-	border: 1px solid black;
-}
-
-.empty {
-	color: darkslateblue
-}
-
-.tkB {
-	color: black
-}
-
-.tkW {
-	color: white
-}
-
-.movePossible {
-	color: olivedrab
-}
