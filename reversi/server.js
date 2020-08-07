@@ -25,6 +25,8 @@ const PORT = process.env.PORT == undefined
 const DB_HOST = "localhost";
 const DB_PORT = "27017";
 const DB_NAME = "reversi";
+const USERNAME_PATTERN = /^[\w\d_]+$/;
+const PASSWORD_MIN_LEN = 8;
 const HS_ITERATIONS = 1000;
 const SESSION_TIMEOUT = 1200000; // 20 min
 const GAME_TIMEOUT = 600000; // 10 min
@@ -131,11 +133,23 @@ async function isValidLogin(account, password) {
 	return stored.equals(calcd);
 }
 
+function isValidUsername(username) {
+	return username.match(USERNAME_PATTERN)
+}
+
+function isValidPassword(password) {
+	return password.length >= PASSWORD_MIN_LEN
+}
+
 // response handler for account registration
 async function registrationHandler(req, res) {
 	let { username, password } = req.body;
 	if (username == undefined || password == undefined) {
 		res.status(400).send("Missing username or password");
+	} else if (!isValidUsername(username)) {
+		res.status(400).send("Invalid username")
+	} else if (!isValidPassword(password)) {
+		res.status(400).send("Invalid password")
 	} else try {
 		await createAccount(username, password)
 			.then(acct => createSession(acct, res));

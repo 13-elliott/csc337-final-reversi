@@ -27,7 +27,7 @@
 		<label for="loginPword">Password</label>
 		<input
 			type="password" id="loginPword" name="password"
-			required
+			required pattern=".{8,}" title="at least 8 characters"
 		/>
 		<input type="submit" value="login" />
 	</form>
@@ -36,12 +36,13 @@
 		<label for="regUname">Username</label>
 		<input
 			type="text" id="regUname" name="username"
-			required
+			required pattern="^[\w\d_]+$"
+			title="only letters, numbers, and/or underscore"
 		/> <br />
 		<label for="regPword">Password</label>
 		<input
 			type="password" id="regPword" name="password"
-			required
+			required pattern=".{8,}" title="at least 8 characters"
 		/>
 		<input type="submit" value="Submit" />
 	</form>
