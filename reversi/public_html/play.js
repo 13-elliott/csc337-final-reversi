@@ -163,6 +163,7 @@ async function pollServer() {
 async function main() {
 	if (!GID) {
 		alert("no game id!")
+		window.location.href = "/home.html"
 	} else {
 		constructBoard()
 		pollServer()
