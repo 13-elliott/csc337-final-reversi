@@ -32,7 +32,7 @@ form {
 	text-align: justify;
 }
 
-form > label {
+form label {
 	display: inline-block;
 	font-weight: bold;
 	width: 100px;

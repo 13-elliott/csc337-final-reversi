@@ -1,3 +1,9 @@
+const POLL_INTERVAL = 2000;
+
+function startPolling() {
+	loadGamesList()
+		.then(_=> setTimeout(startPolling, POLL_INTERVAL))
+}
 
 async function loadGamesList() {
 	let games
@@ -74,6 +80,11 @@ function kickToLogin() {
 	window.location.href = "/index.html?unauthorized"
 }
 
+function setP2NameDisplay() {
+	let cpuValue = $("#cpuTrue").prop("checked")
+	$("#p2Name").css("display", cpuValue ? "none" : "block")
+}
+
 function main() {
 	// ensure that this script gets run again when the page is returned to
 	window.onunload = _ => {}
@@ -81,15 +92,24 @@ function main() {
 	$.get("/get/username")
 		.done(name => $(".username").text(name))
 		.fail(kickToLogin)
-	let cpuRButtons = $("#createGame input[type=radio][name=cpu]").change(function(e) {
-		$("#p2Name").prop("disabled", Boolean(this.value))
-	})
+	setP2NameDisplay()
+	$("#createGame input[type=radio][name=cpu]")
+		.change(setP2NameDisplay)
 	$("#createGame").submit(function(e) {
+		e.preventDefault();
 		if ($("#cpuTrue").prop("checked")) {
 			$("#p2Name").val("")
+		} else {
+			$("#p2Name").val((_, s) => s.trim())
 		}
+		$.post({
+			url: "/games/create",
+			data: $(this).serialize(),
+			success: res => window.location.href = `/play.html?gid=${res}`,
+			error: err => alert(err.responseText),
+		})
 	})
-	loadGamesList()
+	startPolling()
 }
 
 $(main)

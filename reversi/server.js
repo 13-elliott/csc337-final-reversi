@@ -221,7 +221,7 @@ function whichPlayerNumber(game, player) {
 		if (game.hasCPU || game.abandoned || game.p2 != null) {
 			return null;
 		} else {
-			return 1;
+			return 2;
 		}
 	} else if (player.equals(game.p1)) {
 		return 1;
@@ -315,7 +315,7 @@ async function createGameHandler(req, res) {
 	let { p2: p2name, cpu } = req.body;
 	let p1 = getActiveAccountNullable(req, res);
 	let p2;
-	if (cpu || p2name == undefined) {
+	if (cpu || !p2name) {
 		p2 = null;
 	} else {
 		p2 = Account.findOne({ username: p2name.trim().toLowerCase() })
@@ -333,6 +333,10 @@ async function createGameHandler(req, res) {
 	try {
 		// await loading the players
 		[ p1, p2 ] = await Promise.all([ p1, p2 ]);
+		if (p1 != null && p1.equals(p2)) {
+			res.status(400).send("Cannot play a game against yourself!");
+			return;
+		}
 		// create the game
 		let game = await new Game({ p1, p2, hasCPU: Boolean(cpu) })
 			.save();
@@ -347,9 +351,7 @@ async function createGameHandler(req, res) {
 		}
 		// (a)wait for player docs to save
 		await Promise.all([ p1, p2 ]);
-		res.status(201).redirect(
-			`/play.html?gid=${encodeURIComponent(game._id)}`
-		);
+		res.status(201).send(game._id);
 	} catch (err) {
 		if (err instanceof mongoose.Error) {
 			console.error(err);
@@ -384,10 +386,11 @@ async function leaveGameHandler(req, res) {
 		game.set(`p${pNum}`, null);
 		game.set("abandoned", true)
 		await game.save();
-		await Promise.all([
-			removeFromGames(p1, game),
-			removeFromGames(p2, game)
-		]);
+		if (pNum == 1) {
+			await removeFromGames(p1, game)
+		} else {
+			await removeFromGames(p2, game)
+		}
 		res.sendStatus(200);
 	});
 }

@@ -1,8 +1,10 @@
 #gamesList {
+	color: white;
 	position: absolute;
 	left: 0;
-	width: calc(70% - 10px);
+	width: calc(70%);
 	height: 100%;
+	overflow-y: scroll;
 }
 
 .gameEntry {
@@ -16,5 +18,16 @@
 
 #createGame {
 	position: absolute;
+	padding: 3px;
+	text-align: center;
 	left: 70%;
+	width: 30%;
+}
+
+#createGame label {
+	width: auto;
+}
+
+#p2Name {
+	display: none;
 }

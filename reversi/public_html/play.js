@@ -1,5 +1,5 @@
 const BOARD_DIM = 8
-const POLL_INTERVAL = 10000
+const POLL_INTERVAL = 1000
 const GID = getGameId()
 const ENDPOINT = `/games/id/${GID}`
 
@@ -97,7 +97,11 @@ async function submitMove() {
 		} else if (err.status == 403) {
 			alert("Your login session has expired. Please login again")
 			window.location.href = "/index.html"
+		} else if (err.status == 409) {
+			console.log(err.responseText)
+			pollServer()
 		} else {
+			console.error(err)
 			alert(`Problem submitting your move (${x}, ${y})`)
 
 			clickableCells

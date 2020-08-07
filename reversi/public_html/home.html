@@ -22,16 +22,20 @@
 </head>
 <body>
     <div id="header">
-        <h3>Welcome back, <span class="username">[NAME]</span>!</h3>
+        <h3>Welcome back, <span class="username">[NAME]</span>! Let's play Reversi!</h3>
     </div>
     <div id="gamesList"></div>
     <form id="createGame" action="/games/create" method="POST">
-        <label for="cpuFalse">Human Opponent</label>
-        <input id="cpuFalse" type="radio" name="cpu" value=""  />
-        <label for="cpuTrue">CPU Opponent</label>
-        <input id="cpuTrue" type="radio" name="cpu" value="1" />
-        <br />
-        <input id="p2Name" type="text" name="p2" />
+        <div id="cpuRButtons">
+            <label for="cpuFalse">Human Opponent</label>
+            <input id="cpuFalse" type="radio" name="cpu" value="" required />
+            <label for="cpuTrue">CPU Opponent</label>
+            <input id="cpuTrue" type="radio" name="cpu" value="1" required />
+        </div>
+        <div id="p2Name">
+            <label for="p2NameField">Opponent name (leave blank for guest):</label>
+            <input id="p2NameField" type="text" name="p2" />
+        </div>
         <input type="submit" value="Create Game" />
     </form>
 </body>
