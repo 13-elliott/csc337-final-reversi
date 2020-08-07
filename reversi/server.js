@@ -64,11 +64,8 @@ function cleanup() {
 	
 	Game.deleteMany({
 			p1: null,
+			p2: null,
 			lastPlayMadeAt: { $lt: oldestAllowedGOGTime() },
-			$or: [
-				{ abandoned: false },
-				{ abandoned: true, p2: null },
-			],
 		})
 		.exec()
 		.then(result => result.deletedCount > 0
