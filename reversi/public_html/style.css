@@ -14,6 +14,11 @@ h3 {
 	color: brown;
 }
 
+a {
+	color: green;
+	text-decoration: underline;
+}
+
 p {
 	width: max-content;
 	background-color: olivedrab;
