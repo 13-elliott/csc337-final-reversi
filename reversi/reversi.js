@@ -54,7 +54,11 @@ class Board {
 		do {
 			let move = genCompMove.call(this);
 			if (move.length == 0) {
-				return "GAME_OVER";
+				if (!this.getPossibleMoves(P1_TOKEN)) {
+					return "GAME_OVER";
+				} else {
+					break;
+				}
 			} else {
 				let {x, y} = move.pop();
 				applyMove.call(this, x, y, P2_TOKEN, move);
