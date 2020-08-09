@@ -31,6 +31,7 @@ const HS_ITERATIONS = 1000;
 const SESSION_TIMEOUT = 1200000; // 20 min
 const GAME_TIMEOUT = 600000; // 10 min
 const CLEANUP_INTERVAL = 120000; // 2 min
+const USER_POP_SELECT = "-hash -salt -games -__v";
 
 async function createAccount(username, password) {
 	let salt = crypto.randomBytes(64);
@@ -183,6 +184,7 @@ async function loginHandler(req, res) {
 	}
 }
 
+// response handler for GET /get/games
 async function getMyGamesHandler(req, res) {
 	try {
 		let { games } = await getValidatedSession(req, res)
@@ -217,10 +219,12 @@ async function getMyGamesHandler(req, res) {
 	}
 }
 
-function whichPlayerNumber(game, player) {
+// returns which player number the given user is is in the given game
+// or null if the given user is not in the given game
+function whichPlayerNumber(game, user) {
 	if (game.p1 == null) {
 		if (game.abandoned) {
-			if (game.p2 != null && game.p2.equals(player)) {
+			if (game.p2 != null && game.p2.equals(user)) {
 				return 2;
 			} else {
 				return null;
@@ -228,15 +232,15 @@ function whichPlayerNumber(game, player) {
 		} else {
 			return 1;
 		}
-	} else if (player == null) {
+	} else if (user == null) {
 		if (game.hasCPU || game.abandoned || game.p2 != null) {
 			return null;
 		} else {
 			return 2;
 		}
-	} else if (player.equals(game.p1)) {
+	} else if (user.equals(game.p1)) {
 		return 1;
-	} else if (player.equals(game.p2)) {
+	} else if (user.equals(game.p2)) {
 		return 2;
 	} else {
 		return null;
@@ -258,8 +262,9 @@ async function getActiveAccountNullable(req, res) {
 		});
 }
 
-const USER_POP_SELECT = "-hash -salt -games -__v";
-
+// convenience function for finding a game by its id,
+// while also projecting to remove __id and __v fields and populating
+// the p1 and p2 fields with the projection described by USER_POP_SELECT
 async function getGameById(gid) {
 	return Game.findById(gid)
 		.select("-__id -__v")
@@ -268,6 +273,12 @@ async function getGameById(gid) {
 		.exec();
 }
 
+// wraps some action in the logic for authenticating a request
+// related to a specific game.
+// req and res are the request and response objects
+// callback is a function which takes an object containing the
+// validated game object, "game", and the non-null return value of
+// whichPlayerNumber(), "pNum",
 async function wrapGameAuthentication(req, res, callback) {
 	let player = getActiveAccountNullable(req, res);
 	try {
@@ -298,6 +309,7 @@ async function wrapGameAuthentication(req, res, callback) {
 	}
 }
 
+// handler for GET /games/id/:gid
 async function getGameHandler(req, res) {
 	return wrapGameAuthentication(req, res, ({ game, pNum }) => {
 		let pToken = pNum == 1 ? P1_TOKEN : P2_TOKEN;
@@ -321,7 +333,7 @@ async function getGameHandler(req, res) {
 	});
 }
 
-// request handler for POST request to create a new game
+// request handler for POST /games/create
 async function createGameHandler(req, res) {
 	let { p2: p2name, cpu } = req.body;
 	let p1 = getActiveAccountNullable(req, res);
@@ -373,6 +385,8 @@ async function createGameHandler(req, res) {
 	}
 }
 
+// handler for requests to DELETE /games/id/:gid
+// for leaving a game
 async function leaveGameHandler(req, res) {
 	// remove the given game from the given player's .games
 	// property and then save the player if the player is not null
@@ -406,6 +420,8 @@ async function leaveGameHandler(req, res) {
 	});
 }
 
+// handler for requests to POST /games/id/:gid
+// for submitting a move to a game
 async function gameMoveHandler(req, res) {
 	return wrapGameAuthentication(req, res, async ({ game, pNum }) => {
 		let x = Number(req.body.x),
@@ -425,9 +441,11 @@ async function gameMoveHandler(req, res) {
 				if (pNum == 1) {
 					game.board.takePlayerTurn(x, y, P1_TOKEN);
 					if (game.hasCPU) {
-						game.board.takeCompTurns();
-					}
-					if (!game.hasCPU && game.board.getPossibleMoves(P2_TOKEN)) {
+						let gameOver = game.board.takeCompTurns();
+						if (gameOver) {
+							game.curTurn = 0;
+						}
+					} else if (game.board.getPossibleMoves(P2_TOKEN)) {
 						game.curTurn = 2;
 					} else if (!game.board.getPossibleMoves(P1_TOKEN)) {
 						game.curTurn = 0;

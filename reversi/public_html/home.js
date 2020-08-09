@@ -1,10 +1,14 @@
 const POLL_INTERVAL = 2000;
 
+// calls loadGamesList and schedules it to run again POLL_INTERVAL
+// miliseconds after it successfully resolves.
 function startPolling() {
 	loadGamesList()
 		.then(_=> setTimeout(startPolling, POLL_INTERVAL))
 }
 
+// retrieve the user's games from the server and display them
+// as div.gameEntry elements in #gamesList
 async function loadGamesList() {
 	let games
 	try {
@@ -76,19 +80,27 @@ async function loadGamesList() {
 	}
 }
 
+// redirects to /index.html?unauthorized
 function kickToLogin() {
 	window.location.href = "/index.html?unauthorized"
 }
 
+// set the style.display property of #p2Name
+// to "none" if #cpuTrue is checked, or else to "block"
 function setP2NameDisplay() {
 	let cpuValue = $("#cpuTrue").prop("checked")
 	$("#p2Name").css("display", cpuValue ? "none" : "block")
 }
 
+// called once the DOM is safe to manipulate
+// retrieves username from /get/username and set's all
+// .username elements' text to that value, or on failure
+// calls kickToLogin()
+// attaches an event handler for #createGame form submission
+// attaches event handlers to call setP2NameDisplay() when
+// on change in "cpu" radio buttons
+// calls startPolling()
 function main() {
-	// ensure that this script gets run again when the page is returned to
-	window.onunload = _ => {}
-
 	$.get("/get/username")
 		.done(name => $(".username").text(name))
 		.fail(kickToLogin)
@@ -111,5 +123,9 @@ function main() {
 	})
 	startPolling()
 }
+
+// ensure that this script gets run again when
+// the user goes back or forward in their history
+window.onunload = _ => {}
 
 $(main)

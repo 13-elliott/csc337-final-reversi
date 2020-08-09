@@ -1,4 +1,11 @@
-#gameInfo {
+/*
+ * Kitty Elliott
+ * CSC 337
+ * Final: "Reversi"
+ * 	play.css - stylesheet for play.html
+ */
+ 
+ #gameInfo {
 	width: 100%;
 	border: 3px solid brown;
 	margin-bottom: 5px;
