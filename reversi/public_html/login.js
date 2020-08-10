@@ -45,13 +45,13 @@ function unauthorizedKeyPresent() {
 //		successful, redirects the user to the play page for that game
 function main() {
 	//
-	$.get("/get/username")
+	$.get("/username")
 		.done(_ => window.location.href = "/home.html")
 	$("form").submit(formSubmitHandler);
 	$("#notifArea").click(function() { $(this).empty() })
 	$("#createGuestGame").click(e => 
 		$.post({
-			url: "/games/create",
+			url: "/games",
 			data: $.param({ cpu: 1 }),
 			success: res => window.location.href = `/play.html?gid=${res}`,
 			error: err => {

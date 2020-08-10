@@ -12,7 +12,7 @@ function startPolling() {
 async function loadGamesList() {
 	let games
 	try {
-		games = await $.get("/get/games")
+		games = await $.get("/games")
 		$("#gamesList").empty()
 	} catch (err) {
 		if (err.status == 403) {
@@ -70,7 +70,7 @@ async function loadGamesList() {
 				$("<button/>")
 					.text("Leave")
 					.click(_ => $.ajax({
-						url: `/games/id/${g.id}`,
+						url: `/games/${g.id}`,
 						method: "DELETE",
 						success: loadGamesList,
 						fail: _ => alert("Encountered error leaving game!"),
@@ -93,7 +93,7 @@ function setP2NameDisplay() {
 }
 
 // called once the DOM is safe to manipulate
-// retrieves username from /get/username and set's all
+// retrieves username from /username and set's all
 // .username elements' text to that value, or on failure
 // calls kickToLogin()
 // attaches an event handler for #createGame form submission
@@ -101,12 +101,13 @@ function setP2NameDisplay() {
 // on change in "cpu" radio buttons
 // calls startPolling()
 function main() {
-	$.get("/get/username")
+	$.get("/username")
 		.done(name => $(".username").text(name))
 		.fail(kickToLogin)
 	setP2NameDisplay()
 	$("#createGame input[type=radio][name=cpu]")
 		.change(setP2NameDisplay)
+
 	$("#createGame").submit(function(e) {
 		e.preventDefault();
 		if ($("#cpuTrue").prop("checked")) {
@@ -115,7 +116,7 @@ function main() {
 			$("#p2Name").val((_, s) => s.trim())
 		}
 		$.post({
-			url: "/games/create",
+			url: "/games",
 			data: $(this).serialize(),
 			success: res => window.location.href = `/play.html?gid=${res}`,
 			error: err => alert(err.responseText),

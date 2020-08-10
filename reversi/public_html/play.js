@@ -1,7 +1,7 @@
 const BOARD_DIM = 8
 const POLL_INTERVAL = 1000
 const GID = getGameId()
-const ENDPOINT = `/games/id/${GID}`
+const ENDPOINT = `/games/${GID}`
 
 // get the gid query parameter value
 function getGameId() {

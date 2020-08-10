@@ -184,7 +184,7 @@ async function loginHandler(req, res) {
 	}
 }
 
-// response handler for GET /get/games
+// response handler for GET /games
 async function getMyGamesHandler(req, res) {
 	try {
 		let { games } = await getValidatedSession(req, res)
@@ -309,7 +309,7 @@ async function wrapGameAuthentication(req, res, callback) {
 	}
 }
 
-// handler for GET /games/id/:gid
+// handler for GET /games/:gid
 async function getGameHandler(req, res) {
 	return wrapGameAuthentication(req, res, ({ game, pNum }) => {
 		let pToken = pNum == 1 ? P1_TOKEN : P2_TOKEN;
@@ -333,7 +333,7 @@ async function getGameHandler(req, res) {
 	});
 }
 
-// request handler for POST /games/create
+// request handler for POST /games
 async function createGameHandler(req, res) {
 	let { p2: p2name, cpu } = req.body;
 	let p1 = getActiveAccountNullable(req, res);
@@ -385,7 +385,7 @@ async function createGameHandler(req, res) {
 	}
 }
 
-// handler for requests to DELETE /games/id/:gid
+// handler for requests to DELETE /games/:gid
 // for leaving a game
 async function leaveGameHandler(req, res) {
 	// remove the given game from the given player's .games
@@ -420,7 +420,7 @@ async function leaveGameHandler(req, res) {
 	});
 }
 
-// handler for requests to POST /games/id/:gid
+// handler for requests to POST /games/:gid
 // for submitting a move to a game
 async function gameMoveHandler(req, res) {
 	return wrapGameAuthentication(req, res, async ({ game, pNum }) => {
@@ -481,15 +481,15 @@ async function main() {
 		// routes
 		.post("/register", registrationHandler)
 		.post("/login", loginHandler)
-		.get("/get/username", (req, res) => getValidatedSession(req, res)
+		.get("/username", (req, res) => getValidatedSession(req, res)
 			.then(s => res.send(s.user.username))
 			.catch(_ => res.sendStatus(403))
 		)
-		.get   ("/get/games", getMyGamesHandler)
-		.post  ("/games/create", createGameHandler)
-		.get   ("/games/id/:gid", getGameHandler)
-		.post  ("/games/id/:gid", gameMoveHandler)
-		.delete("/games/id/:gid", leaveGameHandler)
+		.get   ("/games", getMyGamesHandler)
+		.post  ("/games", createGameHandler)
+		.get   ("/games/:gid", getGameHandler)
+		.post  ("/games/:gid", gameMoveHandler)
+		.delete("/games/:gid", leaveGameHandler)
 		.use("/", express.static("public_html"))
 	; // end of express app chain
 	mongoose.connection.on("error", console.error);
