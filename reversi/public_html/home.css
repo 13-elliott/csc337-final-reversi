@@ -5,12 +5,17 @@
  * 	home.css - stylesheet for home.html
  */
 
+#header {
+	width: 100%;
+	height: 35px;
+}
+
 #gamesList {
 	color: white;
 	position: absolute;
 	left: 0;
-	width: calc(70%);
-	height: 100%;
+	width: 70%;
+	height: calc(100% - 40px);
 	overflow-y: scroll;
 }
 
