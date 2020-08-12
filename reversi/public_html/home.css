@@ -5,15 +5,24 @@
  * 	home.css - stylesheet for home.html
  */
 
-#header {
+ #header {
 	width: 100%;
 	height: 35px;
+}
+
+#header * {
+	display: inline;
+}
+
+#header a {
+	font-size: 0.6em;
 }
 
 #gamesList {
 	color: white;
 	position: absolute;
 	left: 0;
+	top: 50px;
 	width: 70%;
 	height: calc(100% - 40px);
 	overflow-y: scroll;
@@ -32,12 +41,31 @@
 	position: absolute;
 	padding: 3px;
 	text-align: center;
-	left: 70%;
+	right: 0;
+	top: 50px;
 	width: 30%;
+	height: 200px;
+}
+
+#activeUserArea {
+	color: white;
+	font-weight: bold;
+	position: absolute;
+	right: 0;
+	top: 175px;
+	width: 30%;
+	height: calc(100% - 175px);
+	border-top: 2px solid white;
+	overflow-y: scroll;
 }
 
 #createGame label {
 	width: auto;
+}
+
+.labelAndRadBut {
+	display: inline-block;
+	white-space: nowrap;
 }
 
 #p2Name {

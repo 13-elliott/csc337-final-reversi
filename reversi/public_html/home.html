@@ -25,14 +25,23 @@
 <body>
     <div id="header">
         <h3>Welcome back, <span class="username">[NAME]</span>! Let's play Reversi!</h3>
+        <a href="/logout">or logout</a>
     </div>
     <div id="gamesList"></div>
+    <div id="activeUserArea">
+        <h3>Active Users:</h3>
+        <div id="activeUserList"></div>
+    </div>
     <form id="createGame" action="/games/create" method="POST">
         <div id="cpuRButtons">
-            <label for="cpuFalse">Human Opponent</label>
-            <input id="cpuFalse" type="radio" name="cpu" value="" required />
-            <label for="cpuTrue">CPU Opponent</label>
-            <input id="cpuTrue" type="radio" name="cpu" value="1" required />
+            <div class="labelAndRadBut">
+                <label for="cpuFalse">Human Opponent</label>
+                <input id="cpuFalse" type="radio" name="cpu" value="" required />
+            </div>
+            <div class="labelAndRadBut">
+                <label for="cpuTrue">CPU Opponent</label>
+                <input id="cpuTrue" type="radio" name="cpu" value="1" required />
+            </div>
         </div>
         <div id="p2Name">
             <label for="p2NameField">Opponent name (leave blank for guest):</label>

@@ -2,9 +2,12 @@ const POLL_INTERVAL = 2000;
 
 // calls loadGamesList and schedules it to run again POLL_INTERVAL
 // miliseconds after it successfully resolves.
-function startPolling() {
-	loadGamesList()
-		.then(_=> setTimeout(startPolling, POLL_INTERVAL))
+async function startPolling() {
+	await Promise.all([
+		loadGamesList(), 
+		loadActiveUsersList()
+	])
+	setTimeout(startPolling, POLL_INTERVAL)
 }
 
 // retrieve the user's games from the server and display them
@@ -77,6 +80,29 @@ async function loadGamesList() {
 					}))
 			)
 			.appendTo("#gamesList")
+	}
+}
+
+// retrieve and display the active users in #activeUserList
+async function loadActiveUsersList() {
+	let usernames;
+	try {
+		usernames = await $.get("/activeusers")
+		console.log(usernames)
+		$("#activeUserList").empty()
+	} catch (err) {
+		if (err.status == 403) {
+			kickToLogin()
+		} else {
+			console.error(err)
+		}
+		return
+	}
+	for (let uname of usernames) {
+		$("<div/>")
+			.addClass("activeUser")
+			.text(uname)
+			.appendTo("#activeUserList")
 	}
 }
 
