@@ -472,6 +472,38 @@ async function gameMoveHandler(req, res) {
 	});
 }
 
+// handler for requests to GET /activeusers
+// responds with a list of all users with currently
+// active sessions
+async function getActiveUsersHandler(req, res) {
+	try {
+		let usernameSet = await Session
+			.find({ lastActive: { $gte: oldestAllowedSessionTime() } })
+			.sort("-lastActive")
+			.populate("user", "username")
+			.exec()
+			.then(sessions => new Set(sessions.map(s => s.user.username)))
+		res.json([...usernameSet]);
+	} catch (err) {
+		console.error(err)
+		res.sendStatus(500)
+	}
+}
+
+// request handler for GET /logout
+async function logoutHandler(req, res) {
+	if (req.cookies.session != undefined) {
+		await Session.findByIdAndDelete(req.cookies.session.sid)
+			.exec()
+			.then(_ => res.status(200))
+			.catch((...errs) => {
+				res.status(500);
+				console.error(...errs);
+			})
+	}
+	res.redirect("/index.html");
+}
+
 async function main() {
 	const app = express()
 		// middleware
@@ -481,6 +513,8 @@ async function main() {
 		// routes
 		.post("/register", registrationHandler)
 		.post("/login", loginHandler)
+		.get("/logout", logoutHandler)
+		.get("/activeusers", getActiveUsersHandler)
 		.get("/username", (req, res) => getValidatedSession(req, res)
 			.then(s => res.send(s.user.username))
 			.catch(_ => res.sendStatus(403))
